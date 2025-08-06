@@ -1,0 +1,49 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Minimal EDI 835 - Remittance Advice",
+    "type": "object",
+    "properties": {
+      "remittance_id": { "type": "string" },
+      "claim_id": { "type": "string" },
+      "payer_id": { "type": "string" },
+      "payee_npi": { "type": "string" },
+      "service_lines": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "service_line_id": { "type": "string" },
+            "procedure_code": { "type": "string" },
+            "billed_amount": { "type": "number" },
+            "payer_paid_amount": { "type": "number" },
+            "coinsurance_amount": { "type": "number" },
+            "copay_amount": { "type": "number" },
+            "deductible_amount": { "type": "number" },
+            "not_allowed_amount": { "type": "number" },
+            "remark_codes": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          },
+          "required": [
+            "service_line_id",
+            "procedure_code",
+            "billed_amount",
+            "payer_paid_amount",
+            "coinsurance_amount",
+            "copay_amount",
+            "deductible_amount",
+            "not_allowed_amount"
+          ]
+        }
+      }
+    },
+    "required": [
+      "remittance_id",
+      "claim_id",
+      "payer_id",
+      "payee_npi",
+      "service_lines"
+    ]
+  }
+  
