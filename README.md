@@ -98,3 +98,5 @@ All tests are contained within the `.../tests/` directory within each crate. Tes
 Application accepts command-line arguments: `file_path refill_rate rate_per_second [num_threads]`
 - Configurable rate limiting and thread pool sizing
 - Comprehensive logging system with component-specific headers and timestamps
+
+Application is testable with LLM-generated template/test data found in `test.txt`. Run with `cargo run -- test.txt (REFILL_RATE) (RATE_PER_SECOND) (NUM_THREADS_TO_USE)`.
