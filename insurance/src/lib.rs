@@ -161,6 +161,7 @@ pub fn create_remittance(service_lines: Vec<ServiceLine>, claim: &PayerClaim) ->
         PayerId::UnitedHealthGroup => "UnitedHealthGroup".to_string(),
         PayerId::Anthem => "Anthem".to_string(),
     };
+    let patient_id = format!("{}-{}", payer_id, claim.insurance.patient_member_id);
     let payee_npi = claim.organization.billing_npi.clone().unwrap_or("".to_string());
     let remittance_id = format!("{}", Uuid::new_v4());
 
@@ -169,6 +170,8 @@ pub fn create_remittance(service_lines: Vec<ServiceLine>, claim: &PayerClaim) ->
         claim_id: claim_id,
         payer_id: payer_id,
         payee_npi: payee_npi,
+        patient_id: patient_id,
         service_lines: service_lines,
+        initial_claim_ts: claim.initial_claim_ts,
     }
 }

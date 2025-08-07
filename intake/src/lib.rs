@@ -90,7 +90,8 @@ pub fn read_file(config: &Config) -> Result<impl Iterator<Item = String>, String
 }
 
 pub fn parse_line(line: &str) -> Result<PayerClaim, String> {
-    let claim: PayerClaim = serde_json::from_str(line).map_err(|e| format!("Failed to parse line: {}", e))?;
+    let mut claim: PayerClaim = serde_json::from_str(line).map_err(|e| format!("Failed to parse line: {}", e))?;
+    claim.initial_claim_ts = chrono::Utc::now().timestamp_millis();
     Ok(claim)
 }
 

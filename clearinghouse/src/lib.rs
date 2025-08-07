@@ -1,3 +1,7 @@
+pub mod types;
+
+pub use types::*;
+
 use intake::{PayerClaim, PayerId};
 use insurance::{Medicare, UnitedHealthGroup, Anthem, Insurance, Remittance};
 use std::collections::HashSet;
@@ -156,6 +160,20 @@ pub fn submit_claim_to_payer(claim: &PayerClaim) -> Result<Remittance, String> {
     }
 }
 
-pub fn submit_remittance_to_submitter(remittance: &Remittance) -> Result<(), String> {
-    todo!("Implement remittance submission logic")
+pub fn submit_remittance_to_submitter(remittance: &Remittance) -> Result<ARData, String> {
+    Ok(ARData {
+        claim_id: remittance.claim_id.clone(),
+        remittance_id: remittance.remittance_id.clone(),
+        payer_id: remittance.payer_id.clone(),
+        payee_npi: remittance.payee_npi.clone(),
+        patient_id: remittance.patient_id.clone(),
+        initial_claim_ts: remittance.initial_claim_ts,
+        total_billed_amount: remittance.service_lines.iter().map(|line| line.billed_amount).sum(),
+        total_payer_paid_amount: remittance.service_lines.iter().map(|line| line.payer_paid_amount).sum(),
+        total_coinsurance_amount: remittance.service_lines.iter().map(|line| line.coinsurance_amount).sum(),
+        total_copay_amount: remittance.service_lines.iter().map(|line| line.copay_amount).sum(),
+        total_deductible_amount: remittance.service_lines.iter().map(|line| line.deductible_amount).sum(),
+        total_not_allowed_amount: remittance.service_lines.iter().map(|line| line.not_allowed_amount).sum(),
+        service_lines: remittance.service_lines.clone(),
+    })
 }

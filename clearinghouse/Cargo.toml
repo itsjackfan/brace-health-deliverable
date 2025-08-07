@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 intake = { path = "../intake" }
 insurance = { path = "../insurance" }
+serde = "1.0.219"

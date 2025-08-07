@@ -28,3 +28,4 @@ Once the claim is determined as valid, it will then forward to the relevant paye
 
 - How do we handle invalid claims?
 - Should we automatically submit all claims or write some sort of either CLI or simple frontend? (maybe this can be debug mode vs. "user" mode)
+ 

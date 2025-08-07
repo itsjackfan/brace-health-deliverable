@@ -12,6 +12,8 @@ fn main() -> Result<(), String> {
     println!("Reading claims from file: {}", config.file_path);
     let claims = run_intake(&config)?;
     println!("Successfully read {} claims", claims.len());
+
+    let mut ar_data_vec= Vec::new();
     
     // Process each claim through validation and submission
     for (i, claim) in claims.iter().enumerate() {
@@ -27,7 +29,8 @@ fn main() -> Result<(), String> {
         let remittance = submit_claim_to_payer(claim)?;
 
         // Submit remittance to submitter
-        let _result = submit_remittance_to_submitter(&remittance)?;
+        let ar_data = submit_remittance_to_submitter(&remittance)?;
+        ar_data_vec.push(ar_data);
     }
     
     println!("All claims processed!");

@@ -9,6 +9,7 @@ pub struct PayerClaim {
     pub organization: Organization,
     pub rendering_provider: RenderingProvider,
     pub service_lines: Vec<ServiceLine>,
+    pub initial_claim_ts: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

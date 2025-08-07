@@ -7,7 +7,9 @@ pub struct Remittance {
     pub claim_id: String,
     pub payer_id: String,
     pub payee_npi: String,
+    pub patient_id: String,
     pub service_lines: Vec<ServiceLine>,
+    pub initial_claim_ts: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
