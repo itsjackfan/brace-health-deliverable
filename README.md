@@ -1,6 +1,6 @@
 # BRACE HEALTH TAKEHOME DELIVERABLE
-Created by: Jack Fan
-Start date: 05 Aug 2025
+Created by: Jack Fan <br />
+Start date: 05 Aug 2025 <br /
 Completion/submission date: 07 Aug 2025
 
 ## STATEMENT ON OVERALL ARCHITECTURE UNDERSTANDING
