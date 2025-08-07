@@ -103,21 +103,31 @@ fn test_medicare_submit_claim_single_service_line() {
     assert_eq!(service_line.service_line_id, "SL001");
     assert_eq!(service_line.procedure_code, "99213");
     assert_eq!(service_line.billed_amount, 100.0);
-    assert_eq!(service_line.payer_paid_amount, 80.0); // 80%
-    assert_eq!(service_line.coinsurance_amount, 10.0); // 10%
-    assert_eq!(service_line.copay_amount, 5.0); // 5%
-    assert_eq!(service_line.deductible_amount, 5.0); // 5%
-    assert_eq!(service_line.not_allowed_amount, 5.0); // 5%
+    
+    // Medicare realistic heuristics: $257 deductible, 80/20 split after deductible
+    // For $100 bill, expect most as deductible since it's under $257
+    assert!(service_line.deductible_amount > 0.0);
+    assert!(service_line.coinsurance_amount >= 0.0);
+    assert_eq!(service_line.copay_amount, 0.0); // Medicare Part B no copays
+    assert!(service_line.not_allowed_amount >= 0.0);
+    
+    // Verify amounts sum to billed amount (within small tolerance for floating point)
+    let total = service_line.payer_paid_amount + service_line.coinsurance_amount + 
+                service_line.copay_amount + service_line.deductible_amount + service_line.not_allowed_amount;
+    assert!((total - service_line.billed_amount).abs() < 0.01);
     assert_eq!(service_line.remark_codes, None);
     
     // Verify timing (should sleep between min and max)
-    assert!(elapsed.as_secs() >= 10);
-    assert!(elapsed.as_secs() <= 35); // Allow some buffer for processing time
+    assert!(elapsed.as_secs() >= 10);  // Medicare::new() uses min_response_time_secs: 10
+    assert!(elapsed.as_secs() <= 35);  // Allow some buffer for processing time
 }
 
 #[test]
 fn test_united_health_group_submit_claim() {
-    let uhg = UnitedHealthGroup::new();
+    let uhg = UnitedHealthGroup {
+        min_response_time_secs: 1,
+        max_response_time_secs: 2
+    };
     let service_line = create_test_service_line("SL002", "99214", 2, 75.0, None);
     let claim = create_test_claim(PayerId::UnitedHealthGroup, vec![service_line]);
     
@@ -131,16 +141,26 @@ fn test_united_health_group_submit_claim() {
     // Verify calculations (75 * 2 = 150 billed)
     let service_line = &remittance.service_lines[0];
     assert_eq!(service_line.billed_amount, 150.0);
-    assert_eq!(service_line.payer_paid_amount, 120.0);
-    assert_eq!(service_line.coinsurance_amount, 15.0);
-    assert_eq!(service_line.copay_amount, 7.5);
-    assert_eq!(service_line.deductible_amount, 7.5);
-    assert_eq!(service_line.not_allowed_amount, 7.5);
+    
+    // UnitedHealthGroup realistic heuristics: ~$1800 deductible, 70-80% coverage, $25-35 copay
+    // For $150 bill, expect most as deductible since it's under $1800
+    assert!(service_line.deductible_amount > 0.0);
+    assert!(service_line.coinsurance_amount >= 0.0);
+    assert!(service_line.copay_amount >= 0.0); // UHG uses copays
+    assert!(service_line.not_allowed_amount >= 0.0);
+    
+    // Verify amounts sum to billed amount
+    let total = service_line.payer_paid_amount + service_line.coinsurance_amount + 
+                service_line.copay_amount + service_line.deductible_amount + service_line.not_allowed_amount;
+    assert!((total - service_line.billed_amount).abs() < 0.01);
 }
 
 #[test]
 fn test_anthem_submit_claim() {
-    let anthem = Anthem::new();
+    let anthem = Anthem {
+        min_response_time_secs: 1,
+        max_response_time_secs: 2
+    };
     let service_line = create_test_service_line("SL003", "99215", 1, 200.0, None);
     let claim = create_test_claim(PayerId::Anthem, vec![service_line]);
     
@@ -154,16 +174,26 @@ fn test_anthem_submit_claim() {
     // Verify calculations (200 * 1 = 200 billed)
     let service_line = &remittance.service_lines[0];
     assert_eq!(service_line.billed_amount, 200.0);
-    assert_eq!(service_line.payer_paid_amount, 160.0);
-    assert_eq!(service_line.coinsurance_amount, 20.0);
-    assert_eq!(service_line.copay_amount, 10.0);
-    assert_eq!(service_line.deductible_amount, 10.0);
-    assert_eq!(service_line.not_allowed_amount, 10.0);
+    
+    // Anthem realistic heuristics: ~$1650-2000 deductible, 70/30 split, $20-30 copay
+    // For $200 bill, expect most as deductible since it's under typical deductible
+    assert!(service_line.deductible_amount > 0.0);
+    assert!(service_line.coinsurance_amount >= 0.0);
+    assert!(service_line.copay_amount >= 0.0); // Anthem uses copays
+    assert!(service_line.not_allowed_amount >= 0.0);
+    
+    // Verify amounts sum to billed amount
+    let total = service_line.payer_paid_amount + service_line.coinsurance_amount + 
+                service_line.copay_amount + service_line.deductible_amount + service_line.not_allowed_amount;
+    assert!((total - service_line.billed_amount).abs() < 0.01);
 }
 
 #[test]
 fn test_multiple_service_lines() {
-    let medicare = Medicare::new();
+    let medicare = Medicare {
+        min_response_time_secs: 1,
+        max_response_time_secs: 2
+    };
     let service_lines = vec![
         create_test_service_line("SL001", "99213", 1, 100.0, None),
         create_test_service_line("SL002", "99214", 2, 150.0, None),
@@ -185,7 +215,10 @@ fn test_multiple_service_lines() {
 
 #[test]
 fn test_do_not_bill_true() {
-    let medicare = Medicare::new();
+    let medicare = Medicare {
+        min_response_time_secs: 1,
+        max_response_time_secs: 2
+    };
     let service_line = create_test_service_line("SL001", "99213", 1, 100.0, Some(true));
     let claim = create_test_claim(PayerId::Medicare, vec![service_line]);
     
@@ -206,7 +239,10 @@ fn test_do_not_bill_true() {
 
 #[test]
 fn test_do_not_bill_false() {
-    let medicare = Medicare::new();
+    let medicare = Medicare {
+        min_response_time_secs: 1,
+        max_response_time_secs: 2
+    };
     let service_line = create_test_service_line("SL001", "99213", 1, 100.0, Some(false));
     let claim = create_test_claim(PayerId::Medicare, vec![service_line]);
     
@@ -218,12 +254,18 @@ fn test_do_not_bill_false() {
     
     // Should calculate normally when do_not_bill is false
     assert_eq!(service_line.billed_amount, 100.0);
-    assert_eq!(service_line.payer_paid_amount, 80.0);
+    // Verify amounts sum correctly instead of exact values
+    let total = service_line.payer_paid_amount + service_line.coinsurance_amount + 
+                service_line.copay_amount + service_line.deductible_amount + service_line.not_allowed_amount;
+    assert!((total - service_line.billed_amount).abs() < 0.01);
 }
 
 #[test]
 fn test_do_not_bill_none() {
-    let medicare = Medicare::new();
+    let medicare = Medicare {
+        min_response_time_secs: 1,
+        max_response_time_secs: 2
+    };
     let service_line = create_test_service_line("SL001", "99213", 1, 100.0, None);
     let claim = create_test_claim(PayerId::Medicare, vec![service_line]);
     
@@ -235,12 +277,18 @@ fn test_do_not_bill_none() {
     
     // Should calculate normally when do_not_bill is None
     assert_eq!(service_line.billed_amount, 100.0);
-    assert_eq!(service_line.payer_paid_amount, 80.0);
+    // Verify amounts sum correctly instead of exact values
+    let total = service_line.payer_paid_amount + service_line.coinsurance_amount + 
+                service_line.copay_amount + service_line.deductible_amount + service_line.not_allowed_amount;
+    assert!((total - service_line.billed_amount).abs() < 0.01);
 }
 
 #[test]
 fn test_mixed_do_not_bill_service_lines() {
-    let medicare = Medicare::new();
+    let medicare = Medicare {
+        min_response_time_secs: 1,
+        max_response_time_secs: 2
+    };
     let service_lines = vec![
         create_test_service_line("SL001", "99213", 1, 100.0, Some(true)),  // Should be zero
         create_test_service_line("SL002", "99214", 1, 150.0, Some(false)), // Should calculate
@@ -257,18 +305,27 @@ fn test_mixed_do_not_bill_service_lines() {
     assert_eq!(remittance.service_lines[0].billed_amount, 0.0);
     assert_eq!(remittance.service_lines[0].payer_paid_amount, 0.0);
     
-    // Second service line (do_not_bill = false)
+    // Second service line (do_not_bill = false) - should calculate normally
     assert_eq!(remittance.service_lines[1].billed_amount, 150.0);
-    assert_eq!(remittance.service_lines[1].payer_paid_amount, 120.0);
+    let total_sl2 = remittance.service_lines[1].payer_paid_amount + remittance.service_lines[1].coinsurance_amount + 
+                    remittance.service_lines[1].copay_amount + remittance.service_lines[1].deductible_amount + 
+                    remittance.service_lines[1].not_allowed_amount;
+    assert!((total_sl2 - 150.0).abs() < 0.01);
     
-    // Third service line (do_not_bill = None)
+    // Third service line (do_not_bill = None) - should calculate normally
     assert_eq!(remittance.service_lines[2].billed_amount, 200.0);
-    assert_eq!(remittance.service_lines[2].payer_paid_amount, 160.0);
+    let total_sl3 = remittance.service_lines[2].payer_paid_amount + remittance.service_lines[2].coinsurance_amount + 
+                    remittance.service_lines[2].copay_amount + remittance.service_lines[2].deductible_amount + 
+                    remittance.service_lines[2].not_allowed_amount;
+    assert!((total_sl3 - 200.0).abs() < 0.01);
 }
 
 #[test]
 fn test_zero_unit_charge_amount() {
-    let medicare = Medicare::new();
+    let medicare = Medicare {
+        min_response_time_secs: 1,
+        max_response_time_secs: 2
+    };
     let service_line = create_test_service_line("SL001", "99213", 1, 0.0, None);
     let claim = create_test_claim(PayerId::Medicare, vec![service_line]);
     
@@ -289,7 +346,10 @@ fn test_zero_unit_charge_amount() {
 
 #[test]
 fn test_large_amounts() {
-    let medicare = Medicare::new();
+    let medicare = Medicare {
+        min_response_time_secs: 1,
+        max_response_time_secs: 2
+    };
     let service_line = create_test_service_line("SL001", "99213", 100, 999.99, None);
     let claim = create_test_claim(PayerId::Medicare, vec![service_line]);
     
@@ -301,16 +361,27 @@ fn test_large_amounts() {
     
     // Verify large amount calculations (999.99 * 100 = 99999.00)
     assert!((service_line.billed_amount - 99999.0).abs() < 0.01);
-    assert!((service_line.payer_paid_amount - 79999.2).abs() < 0.01); // 80%
-    assert!((service_line.coinsurance_amount - 9999.9).abs() < 0.01); // 10%
-    assert!((service_line.copay_amount - 4999.95).abs() < 0.01); // 5%
-    assert!((service_line.deductible_amount - 4999.95).abs() < 0.01); // 5%
-    assert!((service_line.not_allowed_amount - 4999.95).abs() < 0.01); // 5%
+    
+    // For large amounts, Medicare deductible is capped at $257, so most should be subject to 80/20 split
+    // After $257 deductible, remaining ~$99,742 should be split 80/20 with some denials
+    assert!(service_line.deductible_amount <= 257.0); // Medicare 2025 deductible cap
+    assert!(service_line.payer_paid_amount > 70000.0); // Should be substantial payer payment
+    assert!(service_line.coinsurance_amount > 15000.0); // Should have coinsurance on remaining amount
+    assert_eq!(service_line.copay_amount, 0.0); // Medicare Part B no copays
+    assert!(service_line.not_allowed_amount > 0.0); // Some denial expected
+    
+    // Verify amounts sum to billed amount
+    let total = service_line.payer_paid_amount + service_line.coinsurance_amount + 
+                service_line.copay_amount + service_line.deductible_amount + service_line.not_allowed_amount;
+    assert!((total - service_line.billed_amount).abs() < 0.01);
 }
 
 #[test]
 fn test_missing_billing_npi() {
-    let medicare = Medicare::new();
+    let medicare = Medicare {
+        min_response_time_secs: 1,
+        max_response_time_secs: 2
+    };
     let service_line = create_test_service_line("SL001", "99213", 1, 100.0, None);
     let mut claim = create_test_claim(PayerId::Medicare, vec![service_line]);
     claim.organization.billing_npi = None; // Remove billing NPI
@@ -324,7 +395,10 @@ fn test_missing_billing_npi() {
 
 #[test]
 fn test_remittance_id_uniqueness() {
-    let medicare = Medicare::new();
+    let medicare = Medicare {
+        min_response_time_secs: 1,
+        max_response_time_secs: 2
+    };
     let service_line = create_test_service_line("SL001", "99213", 1, 100.0, None);
     let claim = create_test_claim(PayerId::Medicare, vec![service_line]);
     
