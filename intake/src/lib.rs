@@ -4,15 +4,16 @@ pub mod types;
 pub use types::*;
 
 use std::time::Instant;
-use std::collections::VecDeque;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use serde_json;
 
+#[derive(Clone)]
 pub struct Config {
     pub file_path: String,
     pub rate_per_second: u32,
     pub refill_rate: u32,
+    pub num_threads: u32,
 }
 
 impl Config {
@@ -34,7 +35,15 @@ impl Config {
             None => return Err("Didn't get a rate per second".to_string()),
         };
 
-        Ok(Config { file_path, rate_per_second, refill_rate })
+        let num_threads = match args.next() {
+            Some(arg) => arg.parse().map_err(|e| format!("Invalid number of threads: {}", e))?,
+            None => {
+                eprintln!("No number of threads provided, using default of 1");
+                1
+            },
+        };
+
+        Ok(Config { file_path, rate_per_second, refill_rate, num_threads })
     }
 }
 
@@ -95,23 +104,3 @@ pub fn parse_line(line: &str) -> Result<PayerClaim, String> {
     Ok(claim)
 }
 
-pub fn run_intake(config: &Config) -> Result<Vec<PayerClaim>, String> {
-    let lines = read_file(config).map_err(|e| format!("Failed to read file: {}", e))?;
-    let mut queue: VecDeque<String> = lines.collect();
-    let mut claims = Vec::new();
-    
-    // TODO: read in number of threads to run from config + other async stuff
-
-    let mut token_bucket = TokenBucket::new(config.rate_per_second, config.refill_rate);
-    
-    while let Some(line) = queue.pop_front() {
-        if !token_bucket.try_consume(1) {
-            queue.push_back(line);
-            continue;
-        }
-        let claim = parse_line(&line).map_err(|e| format!("Failed to parse line: {}", e))?;
-        claims.push(claim);
-    }
-    
-    Ok(claims)
-}

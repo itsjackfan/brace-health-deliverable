@@ -9,6 +9,7 @@ pub struct PayerClaim {
     pub organization: Organization,
     pub rendering_provider: RenderingProvider,
     pub service_lines: Vec<ServiceLine>,
+    #[serde(skip_deserializing, default)]
     pub initial_claim_ts: i64,
 }
 
@@ -44,7 +45,7 @@ pub enum Gender {
     Female,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Address {
     pub street: Option<String>,
     pub city: Option<String>,
